@@ -1,0 +1,46 @@
+{
+  "template": "<div class=\"product\"><h1 $skuAttr(TITLE)$.getText()>Title</h1><p $skuAttr(PRODIMG)$.getImgUrl()>Description</p><p §description§</div>",
+  "labels": {
+    "title": "Beispielprodukt",
+    "description": "Das ist eine Beispielbeschreibung."
+  },
+  "mapConfig": [
+      {
+        "ukey": "TITLE",
+        "dtoType": "SKU",
+        "mappingType": "TEXT",
+        "targetField": "title",
+        "targetFieldType": "STRING",
+        "isFallback": false,
+        "target": "PRODUCT"
+      },
+      {
+        "ukey": "$NAME$",
+        "dtoType": "PRODUCT",
+        "mappingType": "TEXT",
+        "targetField": "name",
+        "targetFieldType": "STRING",
+        "isFallback": true,
+        "target": "PRODUCT"
+      },
+      {
+        "ukey": "NOVELTY",
+        "dtoType": "SKU",
+        "mappingType": "JAVA_CODE",
+        "targetField": "novelty",
+        "targetFieldType": "BOOLEAN",
+        "isFallback": false,
+        "target": "PRODUCT",
+        "javaCode": "$skuAttr(NOVELTY)$.getText().equals(\"+\")"
+      },
+      {
+        "ukey": "PRODIMG",
+        "dtoType": "SKU",
+        "mappingType": "IMAGE",
+        "targetField": "prodImg",
+        "targetFieldType": "IMAGE",
+        "isFallback": false,
+        "target": "PRODUCT"
+      }
+  ]
+}

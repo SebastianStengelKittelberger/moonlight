@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: moonlight
+server:
+  servlet:
+    context-path: /moonlight
+  port: 8078
+bosch:
+  illusion:
+    url: http://localhost:8079/illusion/
