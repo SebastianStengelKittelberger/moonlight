@@ -9,7 +9,7 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>de.kittelberger</groupId>
-	<artifactId>moonshine</artifactId>
+	<artifactId>moonlight</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>war</packaging>
 	<name>moonshine</name>
