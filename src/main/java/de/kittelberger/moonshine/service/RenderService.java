@@ -1,12 +1,13 @@
 package de.kittelberger.moonshine.service;
 
 import de.kittelberger.moonshine.model.MapConfig;
+import de.kittelberger.moonshine.model.SlotConfig;
 import de.kittelberger.moonshine.model.TemplateProperties;
-import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -19,6 +20,7 @@ public class RenderService {
 
   private final DataService dataService;
   private final ConfigService configService;
+  private final TemplateStorageService templateStorageService;
   private final TemplateEngine templateEngine;
 
   private static final Pattern SKU_ATTR_PATTERN =
@@ -38,10 +40,12 @@ public class RenderService {
   public RenderService(
     final DataService dataService,
     final ConfigService configService,
+    final TemplateStorageService templateStorageService,
     final TemplateEngine templateEngine
     ) {
     this.dataService = dataService;
     this.configService = configService;
+    this.templateStorageService = templateStorageService;
     this.templateEngine = templateEngine;
   }
 
@@ -49,18 +53,37 @@ public class RenderService {
   public String renderTemplate(
     final String country,
     final String language,
-    final String sku) {
+    final String sku,
+    final String pageName) {
 
-    Optional<TemplateProperties> templateProperties = configService.loadConfig("example");
-    if(templateProperties.isEmpty()) {
-      return "No template found";
+    TemplateProperties properties = templateStorageService.loadPage(country, language, pageName);
+    if (properties.getSlots() == null || properties.getSlots().isEmpty()) {
+      // fallback: try legacy classpath config
+      Optional<TemplateProperties> legacyProps = configService.loadConfig("example");
+      if (legacyProps.isEmpty()) return "No template found for page '" + pageName + "'";
+      properties = legacyProps.get();
     }
-    TemplateProperties properties = templateProperties.get();
-    Map<String, Map<String, Map<String, Object>>> mappedData = dataService.fetchData(country, language, properties.getMapConfig());
-    // TODO: Kompletter Overkill an Ressourcen. Später nur die Daten für die SKU auslesen und gut. ZB aus Elasticsearch
-    Map<String, Map<String, Object>> data = mappedData.get(sku);
 
-    return renderTemplate(properties, data, sku);
+    // Always use Illusion's mapping config as the single source of truth.
+    List<MapConfig> mapConfig = dataService.loadIllusionMappingConfig(country, language);
+
+    Map<String, String> globalLabels = templateStorageService.loadLabels(country, language);
+    if (properties.getLabels() != null) {
+      globalLabels.putAll(properties.getLabels());
+    }
+    properties.setLabels(globalLabels);
+
+    Map<String, Map<String, Object>> data = dataService.fetchData(country, language, sku, mapConfig);
+
+    if (properties.getSlots() != null && !properties.getSlots().isEmpty()) {
+      return renderSlotBasedPage(properties, data, sku, mapConfig);
+    }
+    return renderTemplate(properties, data, sku, mapConfig);
+  }
+
+  /** Convenience overload defaulting to "produktseite". */
+  public String renderTemplate(final String country, final String language, final String sku) {
+    return renderTemplate(country, language, sku, "produktseite");
   }
 
   private static final Pattern BODY_CONTENT_PATTERN =
@@ -80,12 +103,46 @@ public class RenderService {
       </html>
       """;
 
+  private String renderSlotBasedPage(
+    final TemplateProperties properties,
+    final Map<String, Map<String, Object>> data,
+    final String sku,
+    final List<MapConfig> mapConfig
+  ) {
+    String assembledBody = properties.getSlots().stream()
+        .filter(SlotConfig::isEnabled)
+        .sorted(Comparator.comparingInt(SlotConfig::getOrder))
+        .map(slot -> loadSlotContent(slot.getComponent()))
+        .map(content -> replaceSkuAttributeCalls(content, mapConfig))
+        .map(this::replaceLabelCalls)
+        .collect(java.util.stream.Collectors.joining("\n"));
+
+    String fullPage = PAGE_WRAPPER.formatted(assembledBody);
+
+    Context context = new Context();
+    context.setVariable("dataMap", data);
+    context.setVariable("sku", sku);
+    context.setVariable("labels", properties.getLabels());
+    context.setVariable("stageGallery", buildStageGallery(data, mapConfig));
+
+    return templateEngine.process(fullPage, context);
+  }
+
+  private String loadSlotContent(final String component) {
+    String html = templateStorageService.loadVorlage(component);
+    if (html == null || html.isBlank()) {
+      return "<!-- vorlage '" + component + "' not found -->";
+    }
+    return html;
+  }
+
   private String renderTemplate(
     final TemplateProperties properties,
     final Map<String, Map<String, Object>> data,
-    final String sku
+    final String sku,
+    final List<MapConfig> mapConfig
   ) {
-    String resolvedTemplate = replaceSkuAttributeCalls(properties.getTemplate(), properties.getMapConfig());
+    String resolvedTemplate = replaceSkuAttributeCalls(properties.getTemplate(), mapConfig);
     resolvedTemplate = replaceLabelCalls(resolvedTemplate);
 
     String fullPage = PAGE_WRAPPER.formatted(extractBodyContent(resolvedTemplate));
@@ -94,7 +151,7 @@ public class RenderService {
     context.setVariable("dataMap", data);
     context.setVariable("sku", sku);
     context.setVariable("labels", properties.getLabels());
-    context.setVariable("stageGallery", buildStageGallery(data, properties.getMapConfig()));
+    context.setVariable("stageGallery", buildStageGallery(data, mapConfig));
 
     return templateEngine.process(fullPage, context);
   }
@@ -124,43 +181,52 @@ public class RenderService {
     final String code,
     final List<MapConfig> mapConfigs
   ) {
+    if (mapConfigs == null) return code;
     Matcher matcher = SKU_ATTR_PATTERN.matcher(code);
     StringBuilder sb = new StringBuilder();
     while (matcher.find()) {
-      String ukey      = matcher.group(1);
-      String methodCall = matcher.group(2);
+      String ukey = matcher.group(1);
+
+      String textBefore = code.substring(0, matcher.start());
+      boolean insideThymeleafExpr = isInsideThymeleafExpression(textBefore);
+      boolean insideAttrValue     = !insideThymeleafExpr && isInsideAttributeValue(textBefore);
 
       Optional<MapConfig> matchingConfig = mapConfigs.stream()
         .filter(config -> config.getUkey().equalsIgnoreCase(ukey))
         .findFirst();
 
+      final String expr;
       if (matchingConfig.isPresent()) {
         MapConfig config = matchingConfig.get();
-        String targetFieldName = config.getTargetField();
-        String targetFieldType = config.getTargetFieldType();
+        String f = config.getTargetField();
+        String t = config.getTargetFieldType();
 
-        String textBefore = code.substring(0, matcher.start());
-        boolean insideThymeleafExpr = isInsideThymeleafExpression(textBefore);
-        boolean insideAttrValue     = !insideThymeleafExpr && isInsideAttributeValue(textBefore);
-
-        String expr;
+        // OGNL 3.3.4 does not support ?. – use explicit null-check ternary instead
         if (insideThymeleafExpr) {
-          // Innerhalb von ${...}: nur den reinen Ausdruck, kein ${}
-          expr = "dataMap['" + targetFieldName + "']." + targetFieldType;
+          expr = "IMAGE".equalsIgnoreCase(t)
+              ? "dataMap['" + f + "'] != null ? dataMap['" + f + "'].IMAGE.url : ''"
+              : "dataMap['" + f + "'] != null ? dataMap['" + f + "']." + t + " : ''";
         } else if (insideAttrValue) {
-          // Innerhalb eines Attributwerts: mit ${} wrappen, kein th:-Prefix
-          expr = "IMAGE".equalsIgnoreCase(targetFieldType)
-              ? "${dataMap['" + targetFieldName + "'].IMAGE.url}"
-              : "${dataMap['" + targetFieldName + "']." + targetFieldType + "}";
+          expr = "IMAGE".equalsIgnoreCase(t)
+              ? "${dataMap['" + f + "'] != null ? dataMap['" + f + "'].IMAGE.url : ''}"
+              : "${dataMap['" + f + "'] != null ? dataMap['" + f + "']." + t + " : ''}";
         } else {
-          // Standalone im Tag: vollständiges th:-Attribut generieren
-          expr = "IMAGE".equalsIgnoreCase(targetFieldType)
-              ? "th:src=\"${dataMap['" + targetFieldName + "'].IMAGE.url}\""
-              : "th:text=\"${dataMap['" + targetFieldName + "']." + targetFieldType + "}\"";
+          expr = "IMAGE".equalsIgnoreCase(t)
+              ? "th:src=\"${dataMap['" + f + "'] != null ? dataMap['" + f + "'].IMAGE.url : ''}\""
+              : "th:text=\"${dataMap['" + f + "'] != null ? dataMap['" + f + "']." + t + " : ''}\"";;
         }
-
-        matcher.appendReplacement(sb, Matcher.quoteReplacement(expr));
+      } else {
+        // No mapping for this ukey – render empty/falsy
+        if (insideThymeleafExpr) {
+          expr = "false";   // safe for both th:if and th:text contexts
+        } else if (insideAttrValue) {
+          expr = "''";
+        } else {
+          expr = "th:text=\"''\"";
+        }
       }
+
+      matcher.appendReplacement(sb, Matcher.quoteReplacement(expr));
     }
     matcher.appendTail(sb);
     return sb.toString();
@@ -191,8 +257,9 @@ public class RenderService {
     StringBuilder sb = new StringBuilder();
     while (matcher.find()) {
       String labelKey = matcher.group(1);
-      // Nur den Ausdruck ausgeben – der th:*-Kontext ist bereits im Template definiert
-      matcher.appendReplacement(sb, Matcher.quoteReplacement("${labels['" + labelKey + "']}"));
+      // OGNL 3.3.4 does not support ?: – use explicit null-check ternary
+      matcher.appendReplacement(sb, Matcher.quoteReplacement(
+          "${labels['" + labelKey + "'] != null ? labels['" + labelKey + "'] : ''}"));
     }
     matcher.appendTail(sb);
     return sb.toString();

@@ -1,0 +1,350 @@
+    <section class="o-gt-stage" th:classappend="|trackingModule sm-pt-20|" th:fragment="o_gt_stage">
+      <div class="m-gt-grid">
+        <a href="#" class="back-link link backlink" th:remove="all">
+          <span>Test Result</span>
+          <i class="icon-Bosch-Ic-black"></i>
+        </a>
+
+        <div class="o-gt-stage__labels" th:if="${#bools.isTrue($skuAttr(NOVELTY)$.getBoolVal())}">
+          <div class="o-gt-stage__label" th:if="${#bools.isTrue($skuAttr(NOVELTY)$.getBoolVal())}">
+            <span th:text="§t-productlistingpage.new§">New</span>
+          </div>
+        </div>
+
+        <div class="m-gt-grid__container-fluid">
+          <div class="m-gt-grid__col col-12">
+            <div class="o-gt-stage__flag"><div class="flag flag--expert">expert</div></div>
+            <div class="o-gt-stage__wrapper">
+              <div class="o-gt-stage__intro">
+                <h1 class="bba bba--hl4" $skuAttr(TITLE)$.getText()>EXSR 18V-150</h1>
+                <h2 class="bba bba--medium" $skuAttr(PRODUCTDESCRIPTION)$.getText()>Akku-Bohrschrauber</h2>
+                <p class="bba bba--small" th:text="${sku}">Bestellnummer 0.611.909.000</p>
+                <!-- Bwertungen Platzhalter. so sollten die Bewertungen aussehen. Bazaarvoice? -->
+                <a href="#m-rating1" title="" class="m-rating__stars js-scroll-to" aria-label="Product ratings">
+                  <span class="total-ratings">47 Bewertungen</span>
+                  <input type="radio" name="rating" value="5" id="5">
+                  <label for="5">&#9734;</label>
+                  <input type="radio" name="rating" value="4" id="4">
+                  <label for="4" class="checked">&#9734;</label>
+                  <input type="radio" name="rating" value="3" id="3">
+                  <label for="3" class="checked">&#9734;</label>
+                  <input type="radio" name="rating" value="2" id="2">
+                  <label for="2" class="checked">&#9734;</label>
+                  <input type="radio" name="rating" value="1" id="1">
+                  <label for="1" class="checked">&#9734;</label>
+                  <span class="overall-rating">4.8</span>
+                </a>
+              </div>
+              <div class="o-gt-stage__info-icons column">
+
+                <div class="o-gt-stage__icons">
+                  <div class="o-gt-stage__icon">
+                    <picture>
+                      <source srcset="_res/img/dummys/bosch_bl_icon_professional_18v_system.png">
+                      <img class="img-responsive" src="_res/img/dummys/bosch_bl_icon_professional_18v_system.png" alt="no_dust">
+                    </picture>
+                  </div>
+
+                  <div class="o-gt-stage__icon">
+                    <picture>
+                      <source srcset="_res/img/dummys/bosch_bl_icon_professional_18v_system.png">
+                      <img class="img-responsive" src="_res/img/dummys/bosch_bl_icon_professional_18v_system.png" alt="no_dust">
+                    </picture>
+                  </div>
+                </div>
+
+                <p class="icons-text bba bba--medium bba--fw-bold" th:aria-level="4" th:role="heading"
+                   $skuAttr(EXPERT_BENEFIT_DESCRIPTION)$.getText()>Test Bis zu 4x mehr Leistung als der GSR 18V-45 Professional<sup>1</sup></p>
+
+              </div>
+              <div class="o-gt-stage__info">
+                <ul>
+                  <li class="bba bba--medium">Sehr hoher Anwenderschutz dank KickBack Control (ein- und ausschaltbar)</li>
+                  <li class="bba bba--medium">Kraftvoller Motor liefert mit 64 Nm optimale Leistung für anspruchsvolle Anwendungen</li>
+                  <li class="bba bba--medium">Beste Handlichkeit durch kompakte Kopflänge</li>
+                  <li class="bba bba--medium">Volle Kontrolle dank verstellbarer Präzisions-Kupplung</li>
+                </ul>
+                <a href="#" class="link o-gt-stage__info__toggle-btn" role="button" tabindex="0"
+                   data-show-more="View more"
+                   data-show-less="View less"
+                   data-aria-show-more="View more bullet points"
+                   data-aria-show-less="View less bullet points">
+                  View more
+                </a>
+              </div>
+              <div class="o-gt-stage__materials swiper">
+
+                <div class="o-gt-stage__pics-wrapper swiper-wrapper ">
+
+                  <div class="pics-tooltip  swiper-slide" data-title="Pic 1 Akkuschrauber 3000">
+                    <p class="pics-tooltip__imgTitle"><strong>Lochsägen</strong></p>
+                    <div class="o-gt-stage__pic duo">
+                      <picture>
+                        <source srcset="_res/img/dummys/m-product_teaser/gsr-12v-15-0601868101_166x164.webp" type="image/webp">
+                        <img src="_res/img/dummys/m-product_teaser/gsr-12v-15-0601868101_166x164.png" alt="alt_Pic 1 Akkuschrauber 3000">
+                      </picture>
+                      <picture>
+                        <source srcset="_res/img/dummys/empty_dummy/125x125.webp" type="image/webp">
+                        <img src="_res/img/dummys/empty_dummy/125x125.png" alt="alt_pic-1-1">
+                      </picture>
+                    </div>
+                    <p>ø max <strong>68 mm</strong></p>
+                  </div>
+
+                  <div class="pics-tooltip pair__1 swiper-slide" data-title="Pic 2">
+                    <p class="pics-tooltip__imgTitle"><strong>Bohren</strong></p>
+                    <div class="o-gt-stage__pic duo">
+                      <picture>
+                        <source srcset="_res/img/dummys/m-product_teaser/gsr-12v-15-0601868101_166x164.webp" type="image/webp">
+                        <img src="_res/img/dummys/m-product_teaser/gsr-12v-15-0601868101_166x164.png" alt="alt_Pic 2">
+                      </picture>
+                      <picture>
+                        <source srcset="_res/img/dummys/empty_dummy/125x125.webp" type="image/webp">
+                        <img src="_res/img/dummys/empty_dummy/125x125.png" alt="alt_pic-1-2">
+                      </picture>
+                    </div>
+                    <p>ø max <strong>150 mm</strong></p>
+                  </div>
+
+                  <div class="pics-tooltip pair__2 swiper-slide" data-title="Pic 3">
+                    <div class="o-gt-stage__pic duo">
+                      <picture>
+                        <source srcset="_res/img/dummys/m-product_teaser/gsr-12v-15-0601868101_166x164.webp" type="image/webp">
+                        <img src="_res/img/dummys/m-product_teaser/gsr-12v-15-0601868101_166x164.png" alt="alt_Pic 3">
+                      </picture>
+                      <picture>
+                        <source srcset="_res/img/dummys/empty_dummy/125x125.webp" type="image/webp">
+                        <img src="_res/img/dummys/empty_dummy/125x125.png" alt="alt_A particularly long text to test how the popup behaves with a lot of text">
+                      </picture>
+                    </div>
+                    <p>ø max <strong>16 mm</strong></p>
+                  </div>
+
+                  <div class="pics-tooltip  swiper-slide" data-title="Pic 4">
+                    <p class="pics-tooltip__imgTitle"><strong>Schrauben</strong></p>
+                    <div class="o-gt-stage__pic ">
+                      <picture>
+                        <source srcset="_res/img/dummys/m-product_teaser/gsr-12v-15-0601868101_166x164.webp" type="image/webp">
+                        <img src="_res/img/dummys/m-product_teaser/gsr-12v-15-0601868101_166x164.png" alt="alt_Pic 4">
+                      </picture>
+                    </div>
+                    <p>ø max <strong>13 mm</strong></p>
+                  </div>
+
+                </div>
+
+                <p class="o-gt-stage__materials-subHeadline"><sup>1</sup>&nbsp;Interner Test unter typischen Arbeitsbedingungen.</p>
+
+              </div>
+
+              <div class="o-gt-stage__gallery">
+                <div class="o-gt-stage__modal" role="dialog" aria-modal="false">
+                  <div class="o-gt-stage__modal-close">
+                    <button type="button" aria-label="Close dialog">
+                      <i class="icon-Bosch-Ic-close-black"></i>
+                    </button>
+                  </div>
+                  <div class="swiper swiper-main" tabindex="0">
+                    <div class="swiper-wrapper">
+
+                      <div class="swiper-slide" th:each="mediaItem, iterStat : ${stageGallery}">
+                        <div class="img-wrapper">
+                          <picture>
+                            <source srcset=$skuAttr(PRODIMG)$.getImgUrl() th:data-srcset="''" th:srcset="$skuAttr(PRODIMG)$.getImgUrl()" />
+                            <img alt="" class="img-responsive lazyload"
+                                 src="_res/img/dummys/gsb18v-1330c_8ah_core_dyn_rna_v2.webp"
+                                 th:class="'img-responsive'"
+                                 th:data-src="$skuAttr(PRODIMG)$.getImgUrl()"
+                                 th:src="$skuAttr(PRODIMG)$.getImgUrl()" />
+                          </picture>
+                        </div>
+                      </div>
+
+                    </div>
+                    <div class="arrows-desktop">
+                      <div class="swiper-button-next" role="button" aria-label="Swipe to the next slide"></div>
+                      <div class="swiper-button-prev" role="button" aria-label="Swipe to the previous slide"></div>
+                    </div>
+                  </div>
+                  <div class="swiper thumbs">
+                    <div class="swiper-wrapper">
+
+                      <button type="button" class="thumb swiper-slide ">
+                        <picture>
+                          <source media="(min-width: 992px)" data-srcset="_res/img/dummys/gsb18v-1330c_8ah_core_dyn_rna_v2.webp" type="image/webp">
+                          <img data-src="_res/img/dummys/gsb18v-1330c_8ah_core_dyn_rna_v2.webp" alt="" width="" height="" class="img-responsive lazyload">
+                        </picture>
+                      </button>
+
+                      <button type="button" class="thumb swiper-slide ">
+                        <picture>
+                          <source media="(min-width: 992px)" data-srcset="_res/img/dummys/m123-product-table-3.webp" type="image/webp">
+                          <img data-src="_res/img/dummys/m123-product-table-3.webp" alt="" width="" height="" class="img-responsive lazyload">
+                        </picture>
+                      </button>
+
+                      <button type="button" class="thumb swiper-slide ">
+                        <picture>
+                          <source media="(min-width: 992px)" data-srcset="_res/img/dummys/m350-teaser_boxes.webp" type="image/webp">
+                          <img data-src="_res/img/dummys/m350-teaser_boxes.webp" alt="" width="" height="" class="img-responsive lazyload">
+                        </picture>
+                      </button>
+
+                      <button type="button" class="thumb swiper-slide ">
+                        <picture>
+                          <source media="(min-width: 992px)" data-srcset="_res/img/dummys/O-06-C-Hotspots_Zoom-product.webp" type="image/webp">
+                          <img data-src="_res/img/dummys/O-06-C-Hotspots_Zoom-product.webp" alt="" width="" height="" class="img-responsive lazyload">
+                        </picture>
+                      </button>
+
+                      <button type="button" class="thumb swiper-slide swiper-thumb--cliplister">
+                        <picture>
+                          <source media="(min-width: 992px)" data-srcset="_res/img/dummys/testimg_991px.webp" type="image/webp">
+                          <img data-src="_res/img/dummys/testimg_991px.webp" alt="" width="" height="" class="img-responsive lazyload">
+                        </picture>
+                        <div class="video-icon"></div>
+                      </button>
+
+                    </div>
+                    <div class="swiper-pagination"></div>
+
+                    <div class="swiper-button-next" role="button" aria-label="Swipe to the next slide"></div>
+                    <div class="swiper-button-prev" role="button" aria-label="Swipe to the previous slide"></div>
+                  </div>
+
+                </div>
+              </div>
+
+              <div class="o-gt-stage__icons-wrapper">
+                <div class="o-gt-stage__icons">
+                  <div class="o-gt-stage__icon">
+                    <picture>
+                      <source srcset="_res/img/dummys/bosch_bl_icon_professional_18v_system.png">
+                      <img class="img-responsive" src="_res/img/dummys/bosch_bl_icon_professional_18v_system.png" alt="no_dust">
+                    </picture>
+                  </div>
+
+                  <div class="o-gt-stage__icon">
+                    <picture>
+                      <source srcset="_res/img/dummys/Ampshare-logo.png">
+                      <img class="img-responsive" src="_res/img/dummys/Ampshare-logo.png" alt="ampshare">
+                    </picture>
+                  </div>
+                </div>
+              </div>
+
+              <div class="o-gt-stage__overview">
+                <div class="o-gt-stage__discount">
+                  <div>
+                    <i class="icon-alert-info"></i>
+                  </div>
+                  <div>
+                    <p class="lg">
+                      Products classified as Warehouse Outlet goods are offered at a special price due to packaging damage. The packaging may have significant scratches, dents, and/or scuff marks. These unopened products are unused, tested, and fully functional, with the original seal intact and the scope of delivery complete.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Exclude Variant Select for AC -->
+
+                <div class="o-gt-stage__variant">
+                  <div class="a-select a-select--gray">
+                    <label class="a-select--label-inside" for="select-2">Variante auswaehlen</label>
+                    <div class="a-select__container">
+                      <select id="gt-stage-variant-select" name="gt-stage-variant-select">
+                        <option value="" disabled>Please select</option>
+                        <option value="#1" data-href="#1">Einzelgeraet</option>
+                        <option value="#2" data-href="#2">mit ProCORE 18V 8.0Ah Akku</option>
+                        <option value="#3" data-href="#3">in L-BOXX 136</option>
+                      </select>
+                      <i class="icon-Bosch-Ic-arrow-link-bottom"></i>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="o-gt-stage__price">
+                  <div class="in-stock">
+                    <div>
+                      <div>
+                        <i class="icon-denied"></i>
+                        <p class="bba bba--small">
+                          No returns allowed
+                        </p>
+                      </div>
+                      <div>
+                        <p class="bba bba--small">
+                          Lieferzeit 1-3 Werktage
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="a-pt-price">
+                    <span class="a-pt-price__rrp">
+                    <div class="a-pt-price__flagPlusIcon --transparent crossedPrice">
+                      <i class="icon-user"></i>
+                      <span class="a-pt-price__flag">-9%</span>
+                    </div>
+                    <span class="a-pt-price__flag">-20%</span>
+                    <span class="a-pt-price__text"></span>
+                      <span class="a-pt-price__price">133.00 EUR</span>
+                      <span class="a-pt-price__info">
+                          <object>
+                            <a href="#" tabindex="0" class="a-pt-price__popover" role="button" data-toggle="popover" data-placement="auto" data-trigger="focus" data-container="body" title="" data-content="Lowest total price of the last 30 days before the discount." data-original-title="Price information">
+                              <i class="icon-alert-info"></i>
+                            </a>
+                          </object>
+                      </span>
+                    </span>
+                    <span class="a-pt-price__current">
+                    <span class="a-pt-price__label">from</span>
+                    <div class="a-pt-price__priceWrapper">
+                      <span class="a-pt-price__price ">372,47 EUR</span>
+                        <span class="a-pt-price__gray">
+                            <span class="a-pt-price__label">inkl. MwSt</span>
+                        </span>
+                    </div>
+                  </span>
+                    <span class="a-pt-price__vat">313,00 EUR exkl. MwSt</span>
+                    <div class="a-pt-price__legal-disclaimer">
+                      <span class="legal-disclaimer">Our prices include VAT, Bebat, Recupel and other taxes and contributions.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="o-gt-stage__repair-icon">
+                  <a href="#" class="repair-icon-link" aria-label="Check repairability">
+                    <picture>
+                      <source type="image/webp" srcset="_res/img/dummys/gt-icons/durability.webp">
+                      <img class="img-responsive" src="_res/img/dummys/gt-icons/durability.png" alt="Durability">
+                    </picture>
+                  </a>
+                </div>
+
+                <div class="o-gt-stage__cta">
+                  <button class="bba-btn bba-btn--primary bba-btn--md addToCart">
+                    <i class="icon-Bosch-Ic-add-to-cart-black" aria-hidden="true"></i>
+                    In Warenkorb legen
+                  </button>
+
+                  <button class="bba-btn bba-btn--secondary bba-btn--md">
+                    Bei Bosch Partnern kaufen
+                  </button>
+                </div>
+                <script id="gtin-3165140889810"></script>
+                <div class="o-gt-stage__payment">
+                  <span class="payment-text">Payment options</span>
+                  <div class="payment-icons-wrapper">
+                    <img src="_res/img/brand/Bosch-Ic-creditcard-mcard.svg" alt="Mastercard">
+                    <img src="_res/img/brand/Bosch-Ic-creditcard-visa.svg" alt="Visa">
+                    <img src="_res/img/brand/Bosch-Ic-creditcard-dinersclub.svg" alt="Dinersclub">
+                    <img src="_res/img/brand/Bosch-Ic-creditcard-amex.svg" alt="Amex">
+                    <img src="_res/img/brand/Bosch-Ic-creditcard-maestrocard.svg" alt="Maestro">
+                    <img src="_res/img/brand/Paypal.svg" alt="Paypal">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
