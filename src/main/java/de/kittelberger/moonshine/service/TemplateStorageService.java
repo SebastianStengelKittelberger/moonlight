@@ -7,6 +7,9 @@ import de.kittelberger.moonshine.model.TemplateProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -40,9 +43,10 @@ public class TemplateStorageService {
   private static final Logger log = LoggerFactory.getLogger(TemplateStorageService.class);
 
   // ── New indices ────────────────────────────────────────────────────────────
-  private static final String PAGES_INDEX    = "moonlight-pages";
-  private static final String VORLAGEN_INDEX = "moonlight-vorlagen";
-  private static final String LABELS_INDEX   = "moonlight-labels";
+  private static final String PAGES_INDEX           = "moonlight-pages";
+  private static final String VORLAGEN_INDEX        = "moonlight-vorlagen";
+  private static final String VORLAGEN_HISTORY_INDEX = "moonlight-vorlagen-history";
+  private static final String LABELS_INDEX          = "moonlight-labels";
 
   // ── Legacy indices (backward compat) ──────────────────────────────────────
   private static final String CONFIG_INDEX = "moonlight-template-config";
@@ -101,6 +105,7 @@ public class TemplateStorageService {
     return new ArrayList<>(List.of("produktseite"));
   }
 
+  @Cacheable(value = "pages", key = "#country + '-' + #language + '-' + #pageName")
   public TemplateProperties loadPage(String country, String language, String pageName) {
     String docId = country.toLowerCase() + "-" + language.toLowerCase() + "-" + pageName;
     try {
@@ -131,6 +136,7 @@ public class TemplateStorageService {
       .build();
   }
 
+  @CacheEvict(value = "pages", key = "#country + '-' + #language + '-' + #pageName")
   public void savePage(String country, String language, String pageName, TemplateProperties config) {
     config.setName(pageName);
     String docId = country.toLowerCase() + "-" + language.toLowerCase() + "-" + pageName;
@@ -187,6 +193,7 @@ public class TemplateStorageService {
     return new ArrayList<>(List.of("stage", "description", "benefits"));
   }
 
+  @Cacheable(value = "vorlagen", key = "#name")
   public String loadVorlage(String name) {
     try {
       String json = esClient.get()
@@ -219,6 +226,10 @@ public class TemplateStorageService {
     return "";
   }
 
+  @Caching(evict = {
+      @CacheEvict(value = "vorlagen", key = "#name"),
+      @CacheEvict(value = "vorlage-history", key = "#name")
+  })
   public void saveVorlage(String name, String html) {
     Map<String, Object> doc = Map.of("vorlage", name, "html", html, "timestamp", Instant.now().toString());
     try {
@@ -232,8 +243,72 @@ public class TemplateStorageService {
     } catch (IOException e) {
       throw new RuntimeException("Failed to serialize vorlage", e);
     }
+    // Also write a history entry
+    String historyId = name + "-" + Instant.now().toEpochMilli();
+    Map<String, Object> historyDoc = Map.of("vorlage", name, "html", html, "timestamp", Instant.now().toString());
+    try {
+      esClient.put()
+        .uri("/" + VORLAGEN_HISTORY_INDEX + "/_doc/" + historyId)
+        .accept(MediaType.APPLICATION_JSON)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(objectMapper.writeValueAsString(historyDoc))
+        .retrieve().body(String.class);
+    } catch (Exception e) {
+      log.warn("Failed to write vorlage history for '{}'", name, e);
+    }
   }
 
+  @Cacheable(value = "vorlage-history", key = "#name")
+  public List<Map<String, String>> loadVorlageHistory(String name) {
+    Map<String, Object> query = Map.of(
+      "query", Map.of("term", Map.of("vorlage.keyword", name)),
+      "sort", List.of(Map.of("timestamp", Map.of("order", "desc"))),
+      "size", 20,
+      "_source", List.of("timestamp")
+    );
+    try {
+      String json = esClient.post()
+        .uri("/" + VORLAGEN_HISTORY_INDEX + "/_search")
+        .accept(MediaType.APPLICATION_JSON)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(objectMapper.writeValueAsString(query))
+        .retrieve().body(String.class);
+      JsonNode hits = objectMapper.readTree(json).path("hits").path("hits");
+      List<Map<String, String>> result = new ArrayList<>();
+      if (hits.isArray()) {
+        for (JsonNode hit : hits) {
+          String id = hit.path("_id").textValue();
+          String ts = hit.path("_source").path("timestamp").textValue();
+          if (id != null && ts != null) result.add(Map.of("id", id, "timestamp", ts));
+        }
+      }
+      return result;
+    } catch (Exception e) {
+      log.warn("Failed to load history for vorlage '{}'", name, e);
+      return List.of();
+    }
+  }
+
+  public String loadVorlageVersion(String historyId) {
+    try {
+      String json = esClient.get()
+        .uri("/" + VORLAGEN_HISTORY_INDEX + "/_doc/" + historyId)
+        .accept(MediaType.APPLICATION_JSON)
+        .retrieve().body(String.class);
+      JsonNode node = objectMapper.readTree(json);
+      if (node.path("found").booleanValue()) {
+        return node.path("_source").path("html").textValue();
+      }
+    } catch (Exception e) {
+      log.warn("Failed to load vorlage version '{}'", historyId, e);
+    }
+    return "";
+  }
+
+  @Caching(evict = {
+      @CacheEvict(value = "vorlagen", key = "#name"),
+      @CacheEvict(value = "vorlage-history", key = "#name")
+  })
   public void deleteVorlage(String name) {
     try {
       esClient.delete()
@@ -247,6 +322,7 @@ public class TemplateStorageService {
 
   // ── Labels (global per country/language) ─────────────────────────────────
 
+  @Cacheable(value = "labels", key = "#country + '-' + #language")
   public Map<String, String> loadLabels(String country, String language) {
     String docId = country.toLowerCase() + "-" + language.toLowerCase();
     try {
@@ -276,6 +352,7 @@ public class TemplateStorageService {
     return new java.util.HashMap<>();
   }
 
+  @CacheEvict(value = "labels", key = "#country + '-' + #language")
   public void saveLabels(String country, String language, Map<String, String> labels) {
     String docId = country.toLowerCase() + "-" + language.toLowerCase();
     Map<String, Object> doc = Map.of(

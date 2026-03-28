@@ -1,6 +1,17 @@
 spring:
   application:
     name: moonlight
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=500,expireAfterWrite=30s
+    cache-names:
+      - vorlagen
+      - pages
+      - labels
+      - mapping-config
+      - product-data
+      - vorlage-history
 server:
   servlet:
     context-path: /moonlight

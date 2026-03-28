@@ -6,6 +6,8 @@ import de.kittelberger.moonshine.model.MapConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
@@ -53,6 +55,7 @@ public class DataService {
    *
    * @return field map for the SKU, or an empty map when the document is not found
    */
+  @Cacheable(value = "product-data", key = "#country + '-' + #language + '-' + #sku")
   public Map<String, Map<String, Object>> fetchData(
       final String country,
       final String language,
@@ -103,6 +106,7 @@ public class DataService {
    * Loads the latest Illusion mapping config for the given country/language from ES.
    * Used as fallback when the Moonlight page has no explicit mapConfig.
    */
+  @Cacheable(value = "mapping-config", key = "#country + '-' + #language")
   public List<MapConfig> loadIllusionMappingConfig(final String country, final String language) {
     try {
       String query = """

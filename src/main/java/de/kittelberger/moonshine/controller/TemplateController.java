@@ -78,6 +78,16 @@ public class TemplateController {
     templateStorageService.deleteVorlage(name);
   }
 
+  @GetMapping("/vorlage/{name}/history")
+  public List<Map<String, String>> getVorlageHistory(@PathVariable String name) {
+    return templateStorageService.loadVorlageHistory(name);
+  }
+
+  @GetMapping(value = "/vorlage/{name}/history/{historyId}", produces = MediaType.TEXT_HTML_VALUE)
+  public String getVorlageVersion(@PathVariable String name, @PathVariable String historyId) {
+    return templateStorageService.loadVorlageVersion(historyId);
+  }
+
   // ── Legacy (backward compat) ──────────────────────────────────────────────
 
   @GetMapping("/{country}/{language}/config")
