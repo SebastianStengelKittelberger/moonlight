@@ -234,6 +234,17 @@ public class TemplateStorageService {
     }
   }
 
+  public void deleteVorlage(String name) {
+    try {
+      esClient.delete()
+        .uri("/" + VORLAGEN_INDEX + "/_doc/" + name)
+        .retrieve().body(String.class);
+      log.info("Deleted vorlage '{}'", name);
+    } catch (Exception e) {
+      log.warn("Failed to delete vorlage '{}'", name, e);
+    }
+  }
+
   // ── Labels (global per country/language) ─────────────────────────────────
 
   public Map<String, String> loadLabels(String country, String language) {

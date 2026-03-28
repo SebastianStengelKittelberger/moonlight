@@ -73,6 +73,11 @@ public class TemplateController {
     templateStorageService.saveVorlage(name, html);
   }
 
+  @DeleteMapping("/vorlage/{name}")
+  public void deleteVorlage(@PathVariable String name) {
+    templateStorageService.deleteVorlage(name);
+  }
+
   // ── Legacy (backward compat) ──────────────────────────────────────────────
 
   @GetMapping("/{country}/{language}/config")
