@@ -8,6 +8,7 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -50,11 +51,21 @@ public class RenderService {
   }
 
 
+  /** Convenience overload defaulting to editMode=false. */
   public String renderTemplate(
     final String country,
     final String language,
     final String sku,
     final String pageName) {
+    return renderTemplate(country, language, sku, pageName, false);
+  }
+
+  public String renderTemplate(
+    final String country,
+    final String language,
+    final String sku,
+    final String pageName,
+    final boolean editMode) {
 
     TemplateProperties properties = templateStorageService.loadPage(country, language, pageName);
     if (properties.getSlots() == null || properties.getSlots().isEmpty()) {
@@ -76,9 +87,9 @@ public class RenderService {
     Map<String, Map<String, Object>> data = dataService.fetchData(country, language, sku, mapConfig);
 
     if (properties.getSlots() != null && !properties.getSlots().isEmpty()) {
-      return renderSlotBasedPage(properties, data, sku, mapConfig);
+      return renderSlotBasedPage(properties, data, sku, mapConfig, editMode);
     }
-    return renderTemplate(properties, data, sku, mapConfig);
+    return renderTemplate(properties, data, sku, mapConfig, editMode);
   }
 
   /** Convenience overload defaulting to "produktseite". */
@@ -103,17 +114,61 @@ public class RenderService {
       </html>
       """;
 
+  private static final String EDIT_CSS = """
+      <style>
+        [data-illusion-ukey] {
+          outline: 2px dashed #6366f1 !important;
+          cursor: pointer !important;
+          border-radius: 2px;
+          transition: background 0.15s, opacity 0.15s;
+          pointer-events: auto !important;
+          position: relative !important;
+        }
+        [data-illusion-ukey]:hover {
+          background: rgba(99,102,241,0.15);
+          z-index: 1;
+        }
+        /* Empty elements collapse to 0px — give them a minimum clickable area */
+        [data-illusion-ukey]:empty {
+          display: inline-block !important;
+          min-width: 80px;
+          min-height: 1.2em;
+        }
+        [data-illusion-ukey]:empty::before {
+          content: attr(data-illusion-ukey);
+          font-size: 10px;
+          color: rgba(99,102,241,0.6);
+          font-family: monospace;
+          font-style: italic;
+        }
+        img[data-illusion-ukey] {
+          display: block !important;
+        }
+        img[data-illusion-ukey]:hover {
+          background: transparent;
+          opacity: 0.8;
+          outline-width: 3px !important;
+        }
+      </style>
+      """;
+
   private String renderSlotBasedPage(
     final TemplateProperties properties,
     final Map<String, Map<String, Object>> data,
     final String sku,
-    final List<MapConfig> mapConfig
+    final List<MapConfig> mapConfig,
+    final boolean editMode
   ) {
     String assembledBody = properties.getSlots().stream()
         .filter(SlotConfig::isEnabled)
         .sorted(Comparator.comparingInt(SlotConfig::getOrder))
-        .map(slot -> loadSlotContent(slot.getComponent()))
-        .map(content -> replaceSkuAttributeCalls(content, mapConfig))
+        .map(slot -> {
+          String content = loadSlotContent(slot.getComponent());
+          // Each vorlage gets its own counter so data-illusion-index is relative
+          // to the vorlage file, matching what handleUkeyReplace counts on patch.
+          Map<String, Integer> slotCounters = editMode ? new HashMap<>() : null;
+          return replaceSkuAttributeCalls(content, mapConfig, editMode, slot.getComponent(), slotCounters);
+        })
         .map(this::replaceLabelCalls)
         .collect(java.util.stream.Collectors.joining("\n"));
 
@@ -125,7 +180,20 @@ public class RenderService {
     context.setVariable("labels", properties.getLabels());
     context.setVariable("stageGallery", buildStageGallery(data, mapConfig));
 
-    return templateEngine.process(fullPage, context);
+    String rendered = templateEngine.process(fullPage, context);
+    if (editMode) {
+      rendered = rendered.replace("</head>", EDIT_CSS + "</head>");
+    }
+    return rendered;
+  }
+
+  private String renderSlotBasedPage(
+    final TemplateProperties properties,
+    final Map<String, Map<String, Object>> data,
+    final String sku,
+    final List<MapConfig> mapConfig
+  ) {
+    return renderSlotBasedPage(properties, data, sku, mapConfig, false);
   }
 
   private String loadSlotContent(final String component) {
@@ -140,9 +208,11 @@ public class RenderService {
     final TemplateProperties properties,
     final Map<String, Map<String, Object>> data,
     final String sku,
-    final List<MapConfig> mapConfig
+    final List<MapConfig> mapConfig,
+    final boolean editMode
   ) {
-    String resolvedTemplate = replaceSkuAttributeCalls(properties.getTemplate(), mapConfig);
+    String resolvedTemplate = replaceSkuAttributeCalls(
+        properties.getTemplate(), mapConfig, editMode, null, editMode ? new HashMap<>() : null);
     resolvedTemplate = replaceLabelCalls(resolvedTemplate);
 
     String fullPage = PAGE_WRAPPER.formatted(extractBodyContent(resolvedTemplate));
@@ -153,7 +223,20 @@ public class RenderService {
     context.setVariable("labels", properties.getLabels());
     context.setVariable("stageGallery", buildStageGallery(data, mapConfig));
 
-    return templateEngine.process(fullPage, context);
+    String rendered = templateEngine.process(fullPage, context);
+    if (editMode) {
+      rendered = rendered.replace("</head>", EDIT_CSS + "</head>");
+    }
+    return rendered;
+  }
+
+  private String renderTemplate(
+    final TemplateProperties properties,
+    final Map<String, Map<String, Object>> data,
+    final String sku,
+    final List<MapConfig> mapConfig
+  ) {
+    return renderTemplate(properties, data, sku, mapConfig, false);
   }
 
   private List<Map<String, Object>> buildStageGallery(
@@ -181,9 +264,21 @@ public class RenderService {
     final String code,
     final List<MapConfig> mapConfigs
   ) {
+    return replaceSkuAttributeCalls(code, mapConfigs, false, null, null);
+  }
+
+  public String replaceSkuAttributeCalls(
+    final String code,
+    final List<MapConfig> mapConfigs,
+    final boolean editMode,
+    final String vorlageName,
+    final Map<String, Integer> ukeyCounters
+  ) {
     if (mapConfigs == null) return code;
     Matcher matcher = SKU_ATTR_PATTERN.matcher(code);
     StringBuilder sb = new StringBuilder();
+    int lastAppendPos = 0;
+
     while (matcher.find()) {
       String ukey = matcher.group(1);
 
@@ -195,28 +290,74 @@ public class RenderService {
         .filter(config -> config.getUkey().equalsIgnoreCase(ukey))
         .findFirst();
 
-      final String expr;
       if (matchingConfig.isPresent()) {
         MapConfig config = matchingConfig.get();
         String f = config.getTargetField();
         String t = config.getTargetFieldType();
+        boolean isImage = "IMAGE".equalsIgnoreCase(t);
 
         // OGNL 3.3.4 does not support ?. – use explicit null-check ternary instead
         if (insideThymeleafExpr) {
-          expr = "IMAGE".equalsIgnoreCase(t)
+          String expr = isImage
               ? "dataMap['" + f + "'] != null ? dataMap['" + f + "'].IMAGE.url : ''"
               : "dataMap['" + f + "'] != null ? dataMap['" + f + "']." + t + " : ''";
+          sb.append(code, lastAppendPos, matcher.start());
+          sb.append(expr);
+          lastAppendPos = matcher.end();
+
         } else if (insideAttrValue) {
-          expr = "IMAGE".equalsIgnoreCase(t)
+          String urlExpr = isImage
               ? "${dataMap['" + f + "'] != null ? dataMap['" + f + "'].IMAGE.url : ''}"
               : "${dataMap['" + f + "'] != null ? dataMap['" + f + "']." + t + " : ''}";
+
+          // In editMode: inject data-attributes into the opening tag for ALL types
+          // (TEXT in th:text="$token$" and IMAGE in th:src="$token$" / src="$token$")
+          if (editMode && ukeyCounters != null) {
+            int tagStart = textBefore.lastIndexOf('<');
+            if (tagStart >= lastAppendPos) {
+              int tagNameEnd = findTagNameEnd(code, tagStart + 1);
+              int idx = ukeyCounters.merge(ukey.toUpperCase(), 1, Integer::sum) - 1;
+              sb.append(code, lastAppendPos, tagStart + 1);     // up to and including '<'
+              sb.append(code, tagStart + 1, tagNameEnd);        // tag name, e.g. "img" or "span"
+              sb.append(" ").append(buildEditModeAttrs(ukey, vorlageName, idx, isImage ? "IMAGE" : "TEXT"));
+              sb.append(code, tagNameEnd, matcher.start());     // e.g. " th:text=" (up to token)
+              sb.append(urlExpr);
+              lastAppendPos = matcher.end();
+            } else {
+              // Tag was already emitted (second attr in same tag) – just replace the value
+              sb.append(code, lastAppendPos, matcher.start());
+              sb.append(urlExpr);
+              lastAppendPos = matcher.end();
+            }
+          } else {
+            sb.append(code, lastAppendPos, matcher.start());
+            sb.append(urlExpr);
+            lastAppendPos = matcher.end();
+          }
+
         } else {
-          expr = "IMAGE".equalsIgnoreCase(t)
-              ? "th:src=\"${dataMap['" + f + "'] != null ? dataMap['" + f + "'].IMAGE.url : ''}\""
-              : "th:text=\"${dataMap['" + f + "'] != null ? dataMap['" + f + "']." + t + " : ''}\"";;
+          // Standalone token — in editMode, annotate the enclosing element
+          final String expr;
+          if (editMode && ukeyCounters != null) {
+            int idx = ukeyCounters.merge(ukey.toUpperCase(), 1, Integer::sum) - 1;
+            String thAttr = isImage
+                ? "th:src=\"${dataMap['" + f + "'] != null ? dataMap['" + f + "'].IMAGE.url : ''}\""
+                : "th:text=\"${dataMap['" + f + "'] != null ? dataMap['" + f + "']." + t + " : ''}\"";
+            expr = buildEditModeAttrs(ukey, vorlageName, idx, isImage ? "IMAGE" : "TEXT")
+                + " " + thAttr;
+          } else {
+            expr = isImage
+                ? "th:src=\"${dataMap['" + f + "'] != null ? dataMap['" + f + "'].IMAGE.url : ''}\""
+                : "th:text=\"${dataMap['" + f + "'] != null ? dataMap['" + f + "']." + t + " : ''}\"";
+          }
+          sb.append(code, lastAppendPos, matcher.start());
+          sb.append(expr);
+          lastAppendPos = matcher.end();
         }
+
       } else {
         // No mapping for this ukey – render empty/falsy
+        final String expr;
         if (insideThymeleafExpr) {
           expr = "false";   // safe for both th:if and th:text contexts
         } else if (insideAttrValue) {
@@ -224,12 +365,43 @@ public class RenderService {
         } else {
           expr = "th:text=\"''\"";
         }
+        sb.append(code, lastAppendPos, matcher.start());
+        sb.append(expr);
+        lastAppendPos = matcher.end();
       }
-
-      matcher.appendReplacement(sb, Matcher.quoteReplacement(expr));
     }
-    matcher.appendTail(sb);
+
+    sb.append(code, lastAppendPos, code.length());
     return sb.toString();
+  }
+
+  private String buildEditModeAttrs(
+      final String ukey,
+      final String vorlageName,
+      final int idx,
+      final String fieldtype
+  ) {
+    String vorlageAttr = vorlageName != null
+        ? " data-illusion-vorlage=\"" + vorlageName + "\""
+        : "";
+    return "data-illusion-ukey=\"" + ukey.toUpperCase() + "\""
+        + " data-illusion-type=\"SKU\""
+        + " data-illusion-index=\"" + idx + "\""
+        + vorlageAttr
+        + " data-illusion-fieldtype=\"" + fieldtype + "\""
+        + " th:classappend=\"'illusion-editable'\"";
+  }
+
+  private int findTagNameEnd(final String code, final int start) {
+    int pos = start;
+    if (pos < code.length() && code.charAt(pos) == '/') pos++; // skip / in closing tags
+    while (pos < code.length()
+        && !Character.isWhitespace(code.charAt(pos))
+        && code.charAt(pos) != '>'
+        && code.charAt(pos) != '/') {
+      pos++;
+    }
+    return pos;
   }
 
   private boolean isInsideThymeleafExpression(final String textBefore) {

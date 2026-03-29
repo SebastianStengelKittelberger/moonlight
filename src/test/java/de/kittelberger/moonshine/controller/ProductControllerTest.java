@@ -28,7 +28,7 @@ class ProductControllerTest {
 
     @Test
     void productHandler_returns200WithRenderedHtml() throws Exception {
-        when(renderService.renderTemplate("de", "de", "SKU001", "produktseite"))
+        when(renderService.renderTemplate("de", "de", "SKU001", "produktseite", false))
                 .thenReturn("<html><body>Product Page</body></html>");
 
         mockMvc.perform(get("/de/de/product-SKU001"))
@@ -38,47 +38,59 @@ class ProductControllerTest {
 
     @Test
     void productHandler_defaultsToProduktseite_whenNoPageParam() throws Exception {
-        when(renderService.renderTemplate("de", "de", "SKU001", "produktseite"))
+        when(renderService.renderTemplate("de", "de", "SKU001", "produktseite", false))
                 .thenReturn("<html>Default</html>");
 
         mockMvc.perform(get("/de/de/product-SKU001"))
                 .andExpect(status().isOk());
 
-        verify(renderService).renderTemplate("de", "de", "SKU001", "produktseite");
+        verify(renderService).renderTemplate("de", "de", "SKU001", "produktseite", false);
     }
 
     @Test
     void productHandler_withExplicitPageParam_passesPageToService() throws Exception {
-        when(renderService.renderTemplate("de", "de", "SKU001", "produktseite"))
+        when(renderService.renderTemplate("de", "de", "SKU001", "produktseite", false))
                 .thenReturn("<html>Produktseite</html>");
 
         mockMvc.perform(get("/de/de/product-SKU001").param("page", "produktseite"))
                 .andExpect(status().isOk());
 
-        verify(renderService).renderTemplate("de", "de", "SKU001", "produktseite");
+        verify(renderService).renderTemplate("de", "de", "SKU001", "produktseite", false);
     }
 
     @Test
     void productHandler_withCustomPageParam_passesCustomPageToService() throws Exception {
-        when(renderService.renderTemplate("de", "de", "SKU001", "technische-daten"))
+        when(renderService.renderTemplate("de", "de", "SKU001", "technische-daten", false))
                 .thenReturn("<html>Tech Details</html>");
 
         mockMvc.perform(get("/de/de/product-SKU001").param("page", "technische-daten"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("<html>Tech Details</html>"));
 
-        verify(renderService).renderTemplate("de", "de", "SKU001", "technische-daten");
+        verify(renderService).renderTemplate("de", "de", "SKU001", "technische-daten", false);
     }
 
     @Test
     void productHandler_differentCountryAndLanguage() throws Exception {
-        when(renderService.renderTemplate("at", "de", "SKU999", "produktseite"))
+        when(renderService.renderTemplate("at", "de", "SKU999", "produktseite", false))
                 .thenReturn("<html>AT Product</html>");
 
         mockMvc.perform(get("/at/de/product-SKU999"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("<html>AT Product</html>"));
 
-        verify(renderService).renderTemplate("at", "de", "SKU999", "produktseite");
+        verify(renderService).renderTemplate("at", "de", "SKU999", "produktseite", false);
+    }
+
+    @Test
+    void productHandler_withEditMode_passesEditModeToService() throws Exception {
+        when(renderService.renderTemplate("de", "de", "SKU001", "produktseite", true))
+                .thenReturn("<html><body>Edit Mode</body></html>");
+
+        mockMvc.perform(get("/de/de/product-SKU001").param("editMode", "true"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("<html><body>Edit Mode</body></html>"));
+
+        verify(renderService).renderTemplate("de", "de", "SKU001", "produktseite", true);
     }
 }

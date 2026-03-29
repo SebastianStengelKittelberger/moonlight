@@ -18,9 +18,10 @@ public class ProductController {
     @PathVariable final String country,
     @PathVariable final String language,
     @PathVariable final String sku,
-    @RequestParam(defaultValue = "produktseite") final String page
+    @RequestParam(defaultValue = "produktseite") final String page,
+    @RequestParam(defaultValue = "false") final boolean editMode
   ) {
-    return renderService.renderTemplate(country, language, sku, page);
+    return renderService.renderTemplate(country, language, sku, page, editMode);
   }
 
 }

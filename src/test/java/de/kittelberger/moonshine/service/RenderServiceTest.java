@@ -145,6 +145,82 @@ class RenderServiceTest {
         assertThat(result).contains("th:src=");
     }
 
+    // ── editMode: replaceSkuAttributeCalls ─────────────────────────────────
+
+    @Test
+    void editMode_textType_addsDataAttributes() {
+        MapConfig mc = mapConfig("VOLTAGE", "voltage", "STRING");
+        java.util.Map<String, Integer> counters = new java.util.HashMap<>();
+        String result = renderService.replaceSkuAttributeCalls(
+                "<span $skuAttr(VOLTAGE)$.getText()>", List.of(mc), true, "my-vorlage", counters);
+        assertThat(result).contains("data-illusion-ukey=\"VOLTAGE\"");
+        assertThat(result).contains("data-illusion-type=\"SKU\"");
+        assertThat(result).contains("data-illusion-index=\"0\"");
+        assertThat(result).contains("data-illusion-vorlage=\"my-vorlage\"");
+        assertThat(result).contains("data-illusion-fieldtype=\"TEXT\"");
+        assertThat(result).contains("illusion-editable");
+        assertThat(result).contains("th:text=");
+    }
+
+    @Test
+    void editMode_imageType_addsDataAttributes() {
+        MapConfig mc = mapConfig("HERO", "hero", "IMAGE");
+        java.util.Map<String, Integer> counters = new java.util.HashMap<>();
+        String result = renderService.replaceSkuAttributeCalls(
+                "<img $skuAttr(HERO)$.getImgUrl()>", List.of(mc), true, "my-vorlage", counters);
+        assertThat(result).contains("data-illusion-ukey=\"HERO\"");
+        assertThat(result).contains("data-illusion-fieldtype=\"IMAGE\"");
+        assertThat(result).contains("illusion-editable");
+        assertThat(result).contains("th:src=");
+    }
+
+    @Test
+    void editMode_occurrenceIndex_incrementsPerUkey() {
+        MapConfig mc = mapConfig("VOLTAGE", "voltage", "STRING");
+        java.util.Map<String, Integer> counters = new java.util.HashMap<>();
+        String input = "<span $skuAttr(VOLTAGE)$.getText()> <div $skuAttr(VOLTAGE)$.getText()>";
+        String result = renderService.replaceSkuAttributeCalls(
+                input, List.of(mc), true, "vorlage", counters);
+        assertThat(result).contains("data-illusion-index=\"0\"");
+        assertThat(result).contains("data-illusion-index=\"1\"");
+    }
+
+    @Test
+    void editMode_insideAttrValue_plainSrc_imageType_injectsDataAttrsIntoTag() {
+        MapConfig mc = mapConfig("PRODIMG", "prodimg", "IMAGE");
+        java.util.Map<String, Integer> counters = new java.util.HashMap<>();
+        String result = renderService.replaceSkuAttributeCalls(
+                "<img src=\"$skuAttr(PRODIMG)$.getImgUrl()\">", List.of(mc), true, "vorlage", counters);
+        assertThat(result).contains("data-illusion-ukey=\"PRODIMG\"");
+        assertThat(result).contains("data-illusion-fieldtype=\"IMAGE\"");
+        assertThat(result).contains("illusion-editable");
+        assertThat(result).contains("src=\"${");
+    }
+
+    @Test
+    void editMode_insideThAttrValue_imageType_injectsDataAttrsIntoTag() {
+        MapConfig mc = mapConfig("PRODIMG", "prodimg", "IMAGE");
+        java.util.Map<String, Integer> counters = new java.util.HashMap<>();
+        String result = renderService.replaceSkuAttributeCalls(
+                "<img th:src=\"$skuAttr(PRODIMG)$.getImgUrl()\">", List.of(mc), true, "vorlage", counters);
+        assertThat(result).contains("data-illusion-ukey=\"PRODIMG\"");
+        assertThat(result).contains("data-illusion-fieldtype=\"IMAGE\"");
+        assertThat(result).contains("illusion-editable");
+        assertThat(result).contains("th:src=\"${");
+    }
+
+    @Test
+    void editMode_insideThAttrValue_textType_injectsDataAttrsIntoTag() {
+        MapConfig mc = mapConfig("VOLTAGE", "voltage", "STRING");
+        java.util.Map<String, Integer> counters = new java.util.HashMap<>();
+        String result = renderService.replaceSkuAttributeCalls(
+                "<span th:text=\"$skuAttr(VOLTAGE)$.getText()\">220V</span>", List.of(mc), true, "vorlage", counters);
+        assertThat(result).contains("data-illusion-ukey=\"VOLTAGE\"");
+        assertThat(result).contains("data-illusion-fieldtype=\"TEXT\"");
+        assertThat(result).contains("illusion-editable");
+        assertThat(result).contains("th:text=\"${");
+    }
+
     // ── replaceLabelCalls ──────────────────────────────────────────────────
 
     @Test
