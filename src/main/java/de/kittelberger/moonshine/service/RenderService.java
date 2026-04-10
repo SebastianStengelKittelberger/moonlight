@@ -97,6 +97,36 @@ public class RenderService {
     return renderTemplate(country, language, sku, "produktseite");
   }
 
+  /**
+   * Renders a CMS page — no SKU, no product data, only labels and template slots.
+   * Used by the catch-all routing controller for non-product pages.
+   */
+  public String renderCmsPage(
+    final String country,
+    final String language,
+    final String pageName,
+    final boolean editMode) {
+
+    TemplateProperties properties = templateStorageService.loadPage(country, language, pageName);
+    if (properties.getSlots() == null || properties.getSlots().isEmpty()) {
+      return "No CMS page found for '" + pageName + "'";
+    }
+
+    Map<String, String> globalLabels = templateStorageService.loadLabels(country, language);
+    if (properties.getLabels() != null) {
+      globalLabels.putAll(properties.getLabels());
+    }
+    properties.setLabels(globalLabels);
+
+    // No product data — pass empty map
+    Map<String, Map<String, Object>> emptyData = new java.util.HashMap<>();
+
+    if (properties.getSlots() != null && !properties.getSlots().isEmpty()) {
+      return renderSlotBasedPage(properties, emptyData, null, List.of(), editMode);
+    }
+    return renderTemplate(properties, emptyData, null, List.of(), editMode);
+  }
+
   private static final Pattern BODY_CONTENT_PATTERN =
       Pattern.compile("(?is)<body[^>]*>(.*)</body>");
 
