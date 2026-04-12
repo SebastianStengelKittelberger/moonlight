@@ -88,33 +88,4 @@ public class TemplateController {
     return templateStorageService.loadVorlageVersion(historyId);
   }
 
-  // ── Legacy (backward compat) ──────────────────────────────────────────────
-
-  @GetMapping("/{country}/{language}/config")
-  public TemplateProperties getConfig(@PathVariable String country, @PathVariable String language) {
-    return templateStorageService.loadConfig(country, language);
-  }
-
-  @PutMapping("/{country}/{language}/config")
-  public void putConfig(@PathVariable String country, @PathVariable String language,
-                        @RequestBody TemplateProperties config) {
-    templateStorageService.saveConfig(country, language, config);
-  }
-
-  @GetMapping(value = "/{country}/{language}/template/{slot}", produces = MediaType.TEXT_HTML_VALUE)
-  public String getTemplate(@PathVariable String country, @PathVariable String language,
-                            @PathVariable String slot) {
-    return templateStorageService.loadSlotTemplate(country, language, slot);
-  }
-
-  @PutMapping(value = "/{country}/{language}/template/{slot}", consumes = MediaType.TEXT_PLAIN_VALUE)
-  public void putTemplate(@PathVariable String country, @PathVariable String language,
-                          @PathVariable String slot, @RequestBody String html) {
-    templateStorageService.saveSlotTemplate(country, language, slot, html);
-  }
-
-  @GetMapping("/{country}/{language}/templates")
-  public List<String> listTemplates(@PathVariable String country, @PathVariable String language) {
-    return templateStorageService.listSlots(country, language);
-  }
 }

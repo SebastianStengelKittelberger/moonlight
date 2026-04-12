@@ -2,7 +2,6 @@ package de.kittelberger.moonshine.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import de.kittelberger.moonshine.model.SlotConfig;
 import de.kittelberger.moonshine.model.TemplateProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,42 +25,32 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Persists template data in Elasticsearch across three global/scoped indices:
+ * Persists template data in Elasticsearch across three indices:
  *
  * <ul>
  *   <li>{@code moonlight-vorlagen}  – global slot-HTML Vorlagen (one doc per vorlage name)</li>
  *   <li>{@code moonlight-pages}     – pages per country/language (mapConfig + slots)</li>
  *   <li>{@code moonlight-labels}    – global labels per country/language</li>
  * </ul>
- *
- * Legacy indices ({@code moonlight-template-config}, {@code moonlight-slot-templates}) are kept
- * for backward compatibility via the old {@code loadConfig}/{@code saveConfig} methods.
  */
 @Service
 public class TemplateStorageService {
 
   private static final Logger log = LoggerFactory.getLogger(TemplateStorageService.class);
 
-  // ── New indices ────────────────────────────────────────────────────────────
+  // ── Indices ────────────────────────────────────────────────────────────────
   private static final String PAGES_INDEX           = "moonlight-pages";
   private static final String VORLAGEN_INDEX        = "moonlight-vorlagen";
   private static final String VORLAGEN_HISTORY_INDEX = "moonlight-vorlagen-history";
   private static final String LABELS_INDEX          = "moonlight-labels";
 
-  // ── Legacy indices (backward compat) ──────────────────────────────────────
-  private static final String CONFIG_INDEX = "moonlight-template-config";
-  private static final String SLOT_INDEX   = "moonlight-slot-templates";
-
   private final RestClient esClient;
-  private final ConfigService configService;
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   public TemplateStorageService(
-    ConfigService configService,
     @Value("${elasticsearch.host:localhost}") String host,
     @Value("${elasticsearch.port:9200}") int port
   ) {
-    this.configService = configService;
     this.esClient = RestClient.builder()
       .baseUrl("http://" + host + ":" + port)
       .build();
@@ -373,108 +362,4 @@ public class TemplateStorageService {
     }
   }
 
-  // ── Legacy (backward compat) ──────────────────────────────────────────────
-
-  public TemplateProperties loadConfig(String country, String language) {
-    Map<String, Object> query = Map.of(
-      "query", Map.of("bool", Map.of("filter", List.of(
-        Map.of("term", Map.of("country.keyword", country)),
-        Map.of("term", Map.of("language.keyword", language))
-      ))),
-      "sort", List.of(Map.of("timestamp", "desc")),
-      "size", 1
-    );
-    try {
-      String json = esClient.post()
-        .uri("/" + CONFIG_INDEX + "/_search")
-        .accept(MediaType.APPLICATION_JSON)
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(objectMapper.writeValueAsString(query))
-        .retrieve().body(String.class);
-
-      JsonNode hits = objectMapper.readTree(json).path("hits").path("hits");
-      if (hits.isArray() && !hits.isEmpty()) {
-        return objectMapper.treeToValue(hits.get(0).path("_source").path("config"), TemplateProperties.class);
-      }
-    } catch (RestClientException e) {
-      if (e.getMessage() == null || !e.getMessage().contains("index_not_found")) throw e;
-    } catch (IOException e) {
-      log.warn("Failed to parse config from ES, falling back to classpath", e);
-    }
-    log.info("No template config in ES for {}/{} — using classpath fallback", country, language);
-    return configService.loadConfig("example").orElseGet(TemplateProperties::new);
-  }
-
-  public void saveConfig(String country, String language, TemplateProperties config) {
-    Map<String, Object> doc = Map.of(
-      "country", country, "language", language,
-      "timestamp", Instant.now().toString(), "config", config
-    );
-    try {
-      esClient.post()
-        .uri("/" + CONFIG_INDEX + "/_doc")
-        .accept(MediaType.APPLICATION_JSON)
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(objectMapper.writeValueAsString(doc))
-        .retrieve().body(String.class);
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to serialize config", e);
-    }
-  }
-
-  public String loadSlotTemplate(String country, String language, String slot) {
-    String docId = country + "-" + language + "-" + slot;
-    try {
-      String json = esClient.get()
-        .uri("/" + SLOT_INDEX + "/_doc/" + docId)
-        .accept(MediaType.APPLICATION_JSON)
-        .retrieve().body(String.class);
-      JsonNode node = objectMapper.readTree(json);
-      if (node.path("found").booleanValue()) {
-        return node.path("_source").path("html").textValue();
-      }
-    } catch (RestClientException e) {
-      if (e.getMessage() != null && (e.getMessage().contains("404") || e.getMessage().contains("index_not_found"))) {
-        // fall through
-      } else throw e;
-    } catch (IOException e) {
-      log.warn("Failed to parse slot template from ES", e);
-    }
-    ClassPathResource resource = new ClassPathResource("templates/slots/" + slot + ".html");
-    if (resource.exists()) {
-      try (InputStream in = resource.getInputStream()) {
-        return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-      } catch (IOException e) {
-        log.warn("Failed to read classpath slot template for slot {}", slot, e);
-      }
-    }
-    return "";
-  }
-
-  public void saveSlotTemplate(String country, String language, String slot, String html) {
-    String docId = country + "-" + language + "-" + slot;
-    Map<String, Object> doc = Map.of(
-      "country", country, "language", language,
-      "slot", slot, "html", html, "timestamp", Instant.now().toString()
-    );
-    try {
-      esClient.put()
-        .uri("/" + SLOT_INDEX + "/_doc/" + docId)
-        .accept(MediaType.APPLICATION_JSON)
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(objectMapper.writeValueAsString(doc))
-        .retrieve().body(String.class);
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to serialize slot template", e);
-    }
-  }
-
-  public List<String> listSlots(String country, String language) {
-    LinkedHashSet<String> slots = new LinkedHashSet<>();
-    loadConfig(country, language).getSlots().stream()
-      .map(SlotConfig::getComponent)
-      .forEach(slots::add);
-    for (String known : List.of("stage", "description", "benefits")) slots.add(known);
-    return new ArrayList<>(slots);
-  }
 }
